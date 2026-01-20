@@ -20,6 +20,8 @@ AsyncSessionLocal = async_sessionmaker(
 
 Base = declarative_base()
 
+async_session_factory = AsyncSessionLocal
+
 
 async def get_db() -> AsyncSession:
     async with AsyncSessionLocal() as session:
