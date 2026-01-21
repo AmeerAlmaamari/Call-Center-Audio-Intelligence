@@ -95,6 +95,15 @@ class Product(Base):
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
 
+class CallQualityFlag(str, PyEnum):
+    NORMAL = "normal"
+    SHORT = "short"
+    SILENT = "silent"
+    POOR_AUDIO = "poor_audio"
+    NON_ENGLISH = "non_english"
+    MULTIPLE_SPEAKERS = "multiple_speakers"
+
+
 class Call(Base):
     __tablename__ = "calls"
 
@@ -105,6 +114,8 @@ class Call(Base):
     duration_seconds = Column(Float, nullable=True)
     status = Column(String(50), default=CallStatus.PENDING.value)
     agent_id = Column(UUID(as_uuid=True), ForeignKey("agents.id"), nullable=True)
+    quality_flag = Column(String(50), default=CallQualityFlag.NORMAL.value)
+    quality_notes = Column(String(500), nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
