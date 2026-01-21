@@ -14,6 +14,12 @@ class AgentCreate(AgentBase):
     pass
 
 
+class AgentUpdate(BaseModel):
+    name: Optional[str] = None
+    email: Optional[str] = None
+    department: Optional[str] = None
+
+
 class AgentResponse(AgentBase):
     id: UUID
     created_at: datetime
@@ -38,6 +44,16 @@ class CallBase(BaseModel):
     agent_id: Optional[UUID] = None
 
 
+class CallAgentInfo(BaseModel):
+    id: UUID
+    name: str
+    email: Optional[str] = None
+    department: Optional[str] = None
+
+    class Config:
+        from_attributes = True
+
+
 class CallResponse(BaseModel):
     id: UUID
     filename: str
@@ -46,6 +62,9 @@ class CallResponse(BaseModel):
     duration_seconds: Optional[float] = None
     status: str
     agent_id: Optional[UUID] = None
+    agent: Optional[CallAgentInfo] = None
+    quality_flag: str = "normal"
+    quality_notes: Optional[str] = None
     created_at: datetime
     updated_at: datetime
 
@@ -118,13 +137,31 @@ class ActionItemResponse(BaseModel):
         from_attributes = True
 
 
+class RecentCallResponse(BaseModel):
+    id: UUID
+    filename: str
+    status: str
+    agent_id: Optional[UUID] = None
+    agent_name: Optional[str] = None
+    created_at: datetime
+    duration_seconds: Optional[float] = None
+
+    class Config:
+        from_attributes = True
+
+
 class DashboardOverview(BaseModel):
     total_calls: int
     analyzed_calls: int
+    calls_today: int = 0
     conversion_rate: float
     avg_performance_score: Optional[float] = None
+    avg_conversion_likelihood: Optional[float] = None
     avg_sentiment: Optional[float] = None
-    outcome_distribution: dict
+    calls_by_status: dict = {}
+    calls_by_outcome: dict = {}
+    outcome_distribution: dict = {}
+    recent_calls: List[RecentCallResponse] = []
 
 
 class CallInsights(BaseModel):
@@ -140,7 +177,9 @@ class AgentPerformance(BaseModel):
     total_calls: int
     avg_performance_score: Optional[float] = None
     avg_objection_handling: Optional[float] = None
+    avg_conversion_likelihood: Optional[float] = None
     conversion_rate: float
+    successful_sales: int = 0
 
 
 class ActionCenterData(BaseModel):
