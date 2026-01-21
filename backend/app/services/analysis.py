@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 settings = get_settings()
 
 OPENROUTER_API_URL = "https://openrouter.ai/api/v1/chat/completions"
-MODEL = "google/gemini-2.5-flash-preview"
+MODEL = "google/gemini-3-flash-preview"
 
 
 async def _make_openrouter_request(client: httpx.AsyncClient, headers: dict, payload: dict) -> dict:
