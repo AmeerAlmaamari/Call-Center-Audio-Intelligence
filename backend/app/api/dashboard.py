@@ -1,9 +1,11 @@
 import logging
+from datetime import datetime, timedelta
 from typing import Optional
 
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from backend.app.db.database import get_db
 from backend.app.db.models import (
@@ -12,6 +14,7 @@ from backend.app.db.models import (
 )
 from backend.app.schemas import (
     DashboardOverview,
+    RecentCallResponse,
     CallInsights,
     AgentPerformance,
     ActionCenterData,
@@ -29,10 +32,18 @@ async def get_overview(db: AsyncSession = Depends(get_db)):
     total_calls = total_result.scalar() or 0
 
     analyzed_result = await db.execute(
-        select(func.count()).select_from(Call).where(Call.status == CallStatus.ANALYZED)
+        select(func.count()).select_from(Call).where(Call.status == CallStatus.ANALYZED.value)
     )
     analyzed_calls = analyzed_result.scalar() or 0
 
+    # Calls today
+    today_start = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+    today_result = await db.execute(
+        select(func.count()).select_from(Call).where(Call.created_at >= today_start)
+    )
+    calls_today = today_result.scalar() or 0
+
+    # Get all analyses
     analyses_result = await db.execute(select(CallAnalysis))
     analyses = analyses_result.scalars().all()
 
@@ -46,20 +57,63 @@ async def get_overview(db: AsyncSession = Depends(get_db)):
     avg_performance = sum(performance_scores) / len(performance_scores) if performance_scores else None
 
     conversion_scores = [a.conversion_likelihood for a in analyses if a.conversion_likelihood is not None]
-    avg_sentiment = sum(conversion_scores) / len(conversion_scores) if conversion_scores else None
+    avg_conversion_likelihood = sum(conversion_scores) / len(conversion_scores) if conversion_scores else None
+
+    # Calls by status
+    calls_by_status = {}
+    for status in CallStatus:
+        count_result = await db.execute(
+            select(func.count()).select_from(Call).where(Call.status == status.value)
+        )
+        count = count_result.scalar() or 0
+        if count > 0:
+            calls_by_status[status.value] = count
+
+    # Calls by outcome (from analyses)
+    calls_by_outcome = {}
+    for outcome in CallOutcome:
+        count = sum(1 for a in analyses if a.call_outcome and a.call_outcome == outcome.value)
+        if count > 0:
+            calls_by_outcome[outcome.value] = count
 
     outcome_distribution = {}
     for outcome in CallOutcome:
         count = sum(1 for a in analyses if a.call_outcome and a.call_outcome == outcome.value)
         outcome_distribution[outcome.value] = count
 
+    # Recent calls with agent info
+    recent_calls_result = await db.execute(
+        select(Call)
+        .options(selectinload(Call.agent))
+        .order_by(Call.created_at.desc())
+        .limit(10)
+    )
+    recent_calls_raw = recent_calls_result.scalars().all()
+    recent_calls = [
+        RecentCallResponse(
+            id=c.id,
+            filename=c.filename,
+            status=c.status,
+            agent_id=c.agent_id,
+            agent_name=c.agent.name if c.agent else None,
+            created_at=c.created_at,
+            duration_seconds=c.duration_seconds,
+        )
+        for c in recent_calls_raw
+    ]
+
     return DashboardOverview(
         total_calls=total_calls,
         analyzed_calls=analyzed_calls,
+        calls_today=calls_today,
         conversion_rate=round(conversion_rate, 2),
         avg_performance_score=round(avg_performance, 2) if avg_performance else None,
-        avg_sentiment=round(avg_sentiment, 2) if avg_sentiment else None,
+        avg_conversion_likelihood=round(avg_conversion_likelihood, 2) if avg_conversion_likelihood else None,
+        avg_sentiment=round(avg_conversion_likelihood, 2) if avg_conversion_likelihood else None,
+        calls_by_status=calls_by_status,
+        calls_by_outcome=calls_by_outcome,
         outcome_distribution=outcome_distribution,
+        recent_calls=recent_calls,
     )
 
 
@@ -150,6 +204,7 @@ async def get_agents_performance(db: AsyncSession = Depends(get_db)):
 
         performance_scores = [a.performance_score for a in analyses if a.performance_score is not None]
         objection_scores = [a.objection_handling_score for a in analyses if a.objection_handling_score is not None]
+        conversion_scores = [a.conversion_likelihood for a in analyses if a.conversion_likelihood is not None]
         
         successful_sales = sum(
             1 for a in analyses 
@@ -162,7 +217,9 @@ async def get_agents_performance(db: AsyncSession = Depends(get_db)):
             total_calls=total_calls,
             avg_performance_score=round(sum(performance_scores) / len(performance_scores), 2) if performance_scores else None,
             avg_objection_handling=round(sum(objection_scores) / len(objection_scores), 2) if objection_scores else None,
+            avg_conversion_likelihood=round(sum(conversion_scores) / len(conversion_scores), 2) if conversion_scores else None,
             conversion_rate=round(successful_sales / total_calls * 100, 2) if total_calls > 0 else 0.0,
+            successful_sales=successful_sales,
         ))
 
     return sorted(performance_list, key=lambda x: x.avg_performance_score or 0, reverse=True)

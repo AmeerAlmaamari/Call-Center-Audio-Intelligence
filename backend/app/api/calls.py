@@ -13,7 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from mutagen import File as MutagenFile
 
 from backend.app.db.database import get_db, async_session_factory
-from backend.app.db.models import Call, Transcript, CallAnalysis, ActionItem, Product, CallStatus, Agent
+from backend.app.db.models import Call, Transcript, CallAnalysis, ActionItem, Agent, CallStatus, CallQualityFlag, Product
 from backend.app.utils.error_handling import (
     AudioValidator,
     AudioValidationError,
@@ -107,6 +107,16 @@ async def upload_call(
     # Extract audio duration
     duration_seconds = get_audio_duration(str(file_path))
 
+    # Detect quality issues
+    quality_flag = CallQualityFlag.NORMAL.value
+    quality_notes = None
+    if duration_seconds is not None:
+        if duration_seconds < 10:
+            quality_flag = CallQualityFlag.SHORT.value
+            quality_notes = f"Call duration is only {duration_seconds:.1f} seconds"
+        elif duration_seconds < 30:
+            quality_notes = "Short call - may have limited content"
+
     call = Call(
         id=call_id,
         filename=file.filename,
@@ -115,12 +125,14 @@ async def upload_call(
         duration_seconds=duration_seconds,
         status=CallStatus.PENDING.value,
         agent_id=agent_uuid,
+        quality_flag=quality_flag,
+        quality_notes=quality_notes,
         created_at=datetime.utcnow(),
         updated_at=datetime.utcnow(),
     )
     db.add(call)
     await db.commit()
-    await db.refresh(call)
+    await db.refresh(call, ["agent"])
 
     logger.info(f"Uploaded call {call_id}: {file.filename} (duration: {duration_seconds}s, agent: {agent.name})")
     return call
@@ -131,16 +143,23 @@ async def list_calls(
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
     status: Optional[str] = None,
+    agent_id: Optional[uuid.UUID] = None,
     db: AsyncSession = Depends(get_db),
 ):
     """List all calls with pagination."""
-    query = select(Call)
+    from sqlalchemy.orm import selectinload
+    
+    query = select(Call).options(selectinload(Call.agent))
     if status:
         query = query.where(Call.status == status)
+    if agent_id:
+        query = query.where(Call.agent_id == agent_id)
     
     count_query = select(func.count()).select_from(Call)
     if status:
         count_query = count_query.where(Call.status == status)
+    if agent_id:
+        count_query = count_query.where(Call.agent_id == agent_id)
     
     total_result = await db.execute(count_query)
     total = total_result.scalar()
@@ -162,7 +181,11 @@ async def list_calls(
 @router.get("/{call_id}", response_model=CallResponse)
 async def get_call(call_id: uuid.UUID, db: AsyncSession = Depends(get_db)):
     """Get call details by ID."""
-    result = await db.execute(select(Call).where(Call.id == call_id))
+    from sqlalchemy.orm import selectinload
+    
+    result = await db.execute(
+        select(Call).options(selectinload(Call.agent)).where(Call.id == call_id)
+    )
     call = result.scalar_one_or_none()
     if not call:
         raise HTTPException(status_code=404, detail="Call not found")
@@ -172,6 +195,8 @@ async def get_call(call_id: uuid.UUID, db: AsyncSession = Depends(get_db)):
 @router.delete("/{call_id}", response_model=MessageResponse)
 async def delete_call(call_id: uuid.UUID, db: AsyncSession = Depends(get_db)):
     """Delete a call and its associated data."""
+    from sqlalchemy import delete as sql_delete
+    
     result = await db.execute(select(Call).where(Call.id == call_id))
     call = result.scalar_one_or_none()
     if not call:
@@ -180,9 +205,10 @@ async def delete_call(call_id: uuid.UUID, db: AsyncSession = Depends(get_db)):
     if call.file_path and os.path.exists(call.file_path):
         os.remove(call.file_path)
 
-    await db.execute(select(ActionItem).where(ActionItem.call_id == call_id))
-    await db.execute(select(CallAnalysis).where(CallAnalysis.call_id == call_id))
-    await db.execute(select(Transcript).where(Transcript.call_id == call_id))
+    # Delete related records first (cascade delete)
+    await db.execute(sql_delete(ActionItem).where(ActionItem.call_id == call_id))
+    await db.execute(sql_delete(CallAnalysis).where(CallAnalysis.call_id == call_id))
+    await db.execute(sql_delete(Transcript).where(Transcript.call_id == call_id))
 
     await db.delete(call)
     await db.commit()
