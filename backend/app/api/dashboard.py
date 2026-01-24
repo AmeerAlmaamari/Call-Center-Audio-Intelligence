@@ -7,12 +7,12 @@ from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from backend.app.db.database import get_db
-from backend.app.db.models import (
+from ..db.database import get_db
+from ..db.models import (
     Call, CallAnalysis, ActionItem, Agent, CallStatus,
     CallOutcome, CallReason, InterestLevel, ActionItemCategory,
 )
-from backend.app.schemas import (
+from ..schemas import (
     DashboardOverview,
     RecentCallResponse,
     CallInsights,

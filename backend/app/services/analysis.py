@@ -3,8 +3,8 @@ import json
 import time
 import httpx
 from typing import Optional
-from backend.app.config import get_settings
-from backend.app.utils.error_handling import (
+from ..config import get_settings
+from ..utils.error_handling import (
     AnalysisError,
     RateLimitError,
     AnalysisValidator,

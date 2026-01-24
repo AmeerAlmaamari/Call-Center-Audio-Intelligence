@@ -1,6 +1,6 @@
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
 from sqlalchemy.orm import declarative_base
-from backend.app.config import get_settings
+from ..config import get_settings
 
 settings = get_settings()
 db_url = settings.DATABASE_URL.replace("@db:", "@localhost:")

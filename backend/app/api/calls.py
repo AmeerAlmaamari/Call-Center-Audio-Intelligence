@@ -12,15 +12,15 @@ from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from mutagen import File as MutagenFile
 
-from backend.app.db.database import get_db, async_session_factory
-from backend.app.db.models import Call, Transcript, CallAnalysis, ActionItem, Agent, CallStatus, CallQualityFlag, Product
-from backend.app.utils.error_handling import (
+from ..db.database import get_db, async_session_factory
+from ..db.models import Call, Transcript, CallAnalysis, ActionItem, Agent, CallStatus, CallQualityFlag, Product
+from ..utils.error_handling import (
     AudioValidator,
     AudioValidationError,
     TranscriptionError,
     AnalysisError,
 )
-from backend.app.schemas import (
+from ..schemas import (
     CallResponse,
     CallListResponse,
     TranscriptResponse,
@@ -28,8 +28,8 @@ from backend.app.schemas import (
     ActionItemResponse,
     MessageResponse,
 )
-from backend.app.services.transcription import transcribe_audio
-from backend.app.services.analysis import run_full_analysis
+from ..services.transcription import transcribe_audio
+from ..services.analysis import run_full_analysis
 
 logger = logging.getLogger(__name__)
 router = APIRouter()

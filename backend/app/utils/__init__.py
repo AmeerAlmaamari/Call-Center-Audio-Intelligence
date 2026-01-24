@@ -1,4 +1,4 @@
-from backend.app.utils.error_handling import (
+from .error_handling import (
     APIError,
     RateLimitError,
     TranscriptionError,

@@ -7,8 +7,8 @@ import uuid
 from datetime import datetime
 
 from sqlalchemy.ext.asyncio import AsyncSession
-from backend.app.db.database import AsyncSessionLocal
-from backend.app.db.models import Agent, Product
+from .database import AsyncSessionLocal
+from .models import Agent, Product
 
 
 SAMPLE_AGENTS = [

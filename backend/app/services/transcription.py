@@ -4,8 +4,8 @@ import base64
 import time
 import httpx
 from pathlib import Path
-from backend.app.config import get_settings
-from backend.app.utils.error_handling import (
+from ..config import get_settings
+from ..utils.error_handling import (
     TranscriptionError,
     AudioValidationError,
     RateLimitError,

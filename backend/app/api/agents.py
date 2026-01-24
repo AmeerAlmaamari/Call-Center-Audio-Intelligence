@@ -6,9 +6,9 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from backend.app.db.database import get_db
-from backend.app.db.models import Agent, Call, CallAnalysis, CallStatus
-from backend.app.schemas import AgentResponse, AgentCreate, AgentUpdate, AgentPerformance, MessageResponse
+from ..db.database import get_db
+from ..db.models import Agent, Call, CallAnalysis, CallStatus
+from ..schemas import AgentResponse, AgentCreate, AgentUpdate, AgentPerformance, MessageResponse
 
 logger = logging.getLogger(__name__)
 router = APIRouter()

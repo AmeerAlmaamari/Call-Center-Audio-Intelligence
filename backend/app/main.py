@@ -8,9 +8,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
 
-from backend.app.api import calls, agents, dashboard
-from backend.app.db.database import engine
-from backend.app.utils.error_handling import APIError, AudioValidationError
+from .api import calls, agents, dashboard
+from .db.database import engine
+from .utils.error_handling import APIError, AudioValidationError
 
 logging.basicConfig(
     level=logging.INFO,
