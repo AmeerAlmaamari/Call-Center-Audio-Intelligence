@@ -9,11 +9,14 @@ from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
 
 from .api import calls, agents, dashboard
+from .config import get_settings
 from .db.database import engine
 from .utils.error_handling import APIError, AudioValidationError
 
+settings = get_settings()
+
 logging.basicConfig(
-    level=logging.INFO,
+    level=getattr(logging, settings.LOG_LEVEL.upper(), logging.INFO),
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
 )
 logger = logging.getLogger(__name__)
@@ -57,7 +60,8 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    logger.info("Starting Call Center Audio Intelligence API")
+    logger.info(f"Starting Call Center Audio Intelligence API (env: {settings.APP_ENV})")
+    logger.info(f"Debug mode: {settings.DEBUG}")
     yield
     await engine.dispose()
     logger.info("Shutting down API")
@@ -73,7 +77,7 @@ app = FastAPI(
 app.add_middleware(RequestLoggingMiddleware)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=settings.cors_origins_list if settings.is_production else ["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -118,7 +122,27 @@ async def global_exception_handler(request: Request, exc: Exception):
 
 @app.get("/health", tags=["Health"])
 async def health_check():
-    return {"status": "healthy", "service": "call-center-audio-intelligence"}
+    """Health check endpoint for monitoring and container orchestration."""
+    return {
+        "status": "healthy",
+        "service": "call-center-audio-intelligence",
+        "environment": settings.APP_ENV,
+        "version": "0.1.0"
+    }
+
+
+@app.get("/ready", tags=["Health"])
+async def readiness_check():
+    """Readiness check - verifies the service can handle requests."""
+    try:
+        # Could add database connectivity check here
+        return {"status": "ready"}
+    except Exception as e:
+        logger.error(f"Readiness check failed: {e}")
+        return JSONResponse(
+            status_code=503,
+            content={"status": "not_ready", "error": str(e)}
+        )
 
 
 app.include_router(calls.router, prefix="/api/calls", tags=["Calls"])
