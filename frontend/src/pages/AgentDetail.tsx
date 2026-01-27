@@ -1,6 +1,6 @@
 import { useParams, Link } from "react-router-dom"
 import { useQuery } from "@tanstack/react-query"
-import { Users, Mail, Building, Phone, TrendingUp, Target } from "lucide-react"
+import { Users, Mail, Building, Phone } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
