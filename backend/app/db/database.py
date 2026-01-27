@@ -3,11 +3,11 @@ from sqlalchemy.orm import declarative_base
 from ..config import get_settings
 
 settings = get_settings()
-db_url = settings.DATABASE_URL.replace("@db:", "@localhost:")
 
+# Use DATABASE_URL directly - configure via .env for local vs Docker
 engine = create_async_engine(
-    db_url,
-    echo=False,
+    settings.DATABASE_URL,
+    echo=settings.DEBUG,
     pool_size=5,
     max_overflow=10,
 )

@@ -1,11 +1,14 @@
 """
 Seed script to populate the database with sample agents and products.
 Run with: python -m backend.app.db.seed
+
+This script only seeds data if the tables are empty, preserving existing data.
 """
 import asyncio
 import uuid
 from datetime import datetime
 
+from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from .database import AsyncSessionLocal
 from .models import Agent, Product
@@ -31,6 +34,14 @@ SAMPLE_PRODUCTS = [
 
 
 async def seed_agents(session: AsyncSession) -> None:
+    # Check if agents already exist
+    result = await session.execute(select(func.count()).select_from(Agent))
+    count = result.scalar()
+    
+    if count > 0:
+        print(f"Agents table already has {count} records. Skipping seed.")
+        return
+    
     for agent_data in SAMPLE_AGENTS:
         agent = Agent(
             id=uuid.uuid4(),
@@ -46,6 +57,14 @@ async def seed_agents(session: AsyncSession) -> None:
 
 
 async def seed_products(session: AsyncSession) -> None:
+    # Check if products already exist
+    result = await session.execute(select(func.count()).select_from(Product))
+    count = result.scalar()
+    
+    if count > 0:
+        print(f"Products table already has {count} records. Skipping seed.")
+        return
+    
     for product_data in SAMPLE_PRODUCTS:
         product = Product(
             id=uuid.uuid4(),
